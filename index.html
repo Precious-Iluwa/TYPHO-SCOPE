@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>typho · creative typhoid diagnoser + download</title>
+    <!-- Font Awesome, Google Fonts -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz@14..32&display=swap" rel="stylesheet">
+    <!-- html2canvas & jsPDF for image/pdf download -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            transition: background-color 0.2s ease, border-color 0.2s, color 0.2s;
+        }
+
+        /* cool light palette (teal + soft blue) */
+        :root {
+            --bg-gradient: linear-gradient(145deg, #e0f2fe 0%, #bae6fd 100%);
+            --card-bg: rgba(255, 255, 255, 0.8);
+            --card-glass: rgba(255, 255, 255, 0.6);
+            --text-primary: #164e63;
+            --text-secondary: #1e3a5f;
+            --accent: #0e7c86;
+            --accent-light: #2aa9b8;
+            --border-light: #a5d8f3;
+            --shadow: 0 15px 30px -10px rgba(2, 84, 97, 0.2);
+            --header-bg: #ffffffcc;
+            --input-bg: #f0f9ff;
+            --check-bg: #e6f3fa;
+            --modal-overlay: rgba(6, 48, 60, 0.4);
+            --logo-highlight: #0f5c6b;
+        }
+
+        /* dark mode – deep sea / cool dark */
+        body.dark {
+            --bg-gradient: linear-gradient(145deg, #0b2027 0%, #12303a 100%);
+            --card-bg: #1e3a47d9;
+            --card-glass: #1f3e4b;
+            --text-primary: #cbd5e1;
+            --text-secondary: #d5e5f0;
+            --accent: #54b7c9;
+            --accent-light: #6ec1d3;
+            --border-light: #2c5f73;
+            --shadow: 0 20px 30px -10px #041318;
+            --header-bg: #0f2c36cc;
+            --input-bg: #1c3b48;
+            --check-bg: #204c5c;
+            --modal-overlay: rgba(0, 0, 0, 0.7);
+            --logo-highlight: #b0e0ee;
+        }
+
+        body {
+            background: var(--bg-gradient);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            backdrop-filter: blur(2px);
+            line-height: 1.5;
+        }
+
+        /* glassmorphic header */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 2rem;
+            background: var(--header-bg);
+            backdrop-filter: blur(12px);
+            box-shadow: 0 4px 10px rgba(0,30,40,0.1);
+            border-bottom: 1px solid var(--border-light);
+            flex-wrap: wrap;
+        }
+
+        .logo {
+            font-size: 1.8rem;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+            color: var(--logo-highlight);
+            text-shadow: 0 2px 5px rgba(0,140,150,0.2);
+        }
+        .logo i {
+            color: var(--accent);
+            margin-right: 8px;
+            font-size: 2rem;
+            vertical-align: middle;
+        }
+
+        /* dark mode toggle (right side) */
+        .dark-toggle {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: var(--card-bg);
+            padding: 8px 18px;
+            border-radius: 40px;
+            border: 1px solid var(--border-light);
+            cursor: pointer;
+            box-shadow: var(--shadow);
+        }
+        .dark-toggle span {
+            font-size: 1rem;
+            color: var(--text-secondary);
+        }
+        .dark-toggle i {
+            font-size: 1.4rem;
+            color: #f5b342; /* sun stays warm */
+        }
+        .dark-toggle .fa-moon {
+            color: #a0c0d0;
+        }
+        body.dark .dark-toggle .fa-sun { color: #f0d89f; }
+        body.dark .dark-toggle .fa-moon { color: #dceefb; }
+
+        /* main container */
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1.5rem;
+            flex: 1;
+        }
+
+        .card {
+            background: var(--card-glass);
+            backdrop-filter: blur(10px);
+            border-radius: 2rem;
+            padding: 2rem 2.2rem;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border-light);
+        }
+
+        h2, h3 {
+            color: var(--text-secondary);
+            font-weight: 500;
+            margin-bottom: 1.2rem;
+        }
+        h2 i, h3 i {
+            color: var(--accent);
+            margin-right: 10px;
+        }
+
+        .patient-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.2rem;
+            margin-bottom: 2rem;
+        }
+
+        .input-field {
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+        }
+        .input-field label {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            letter-spacing: 0.3px;
+        }
+        .input-field input, .input-field select {
+            background: var(--input-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 30px;
+            padding: 0.8rem 1.2rem;
+            font-size: 1rem;
+            color: var(--text-primary);
+            outline: none;
+            transition: 0.2s;
+        }
+        .input-field input:focus, .input-field select:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(42,169,184,0.3);
+        }
+
+        .symptom-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 1rem 1.5rem;
+            margin: 1.5rem 0 2rem;
+        }
+        .symptom-item {
+            background: var(--check-bg);
+            border-radius: 40px;
+            padding: 0.5rem 0.5rem 0.5rem 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border: 1px solid var(--border-light);
+            transition: 0.15s;
+        }
+        .symptom-item:hover {
+            background: var(--accent-light);
+            border-color: var(--accent);
+        }
+        .symptom-item input[type="checkbox"] {
+            width: 1.3rem;
+            height: 1.3rem;
+            accent-color: var(--accent);
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .symptom-item label {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+            cursor: pointer;
+            flex: 1;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+        }
+        .btn {
+            background: var(--accent);
+            border: none;
+            color: white;
+            padding: 0.9rem 2.2rem;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 1.2rem;
+            cursor: pointer;
+            box-shadow: 0 8px 16px -6px var(--accent);
+            transition: all 0.15s;
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            border: 1px solid #ffffff40;
+        }
+        .btn i { font-size: 1.3rem; }
+        .btn:hover {
+            background: var(--accent-light);
+            transform: scale(1.02);
+            box-shadow: 0 12px 22px -8px #0b5e68;
+        }
+        .btn-outline {
+            background: transparent;
+            color: var(--text-secondary);
+            border: 2px solid var(--accent);
+            box-shadow: none;
+        }
+        .btn-outline:hover {
+            background: var(--accent);
+            color: white;
+        }
+
+        /* ----- MODAL (cool glass) ----- */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--modal-overlay);
+            backdrop-filter: blur(5px);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal-card {
+            background: var(--card-glass);
+            backdrop-filter: blur(20px);
+            max-width: 600px;
+            width: 90%;
+            border-radius: 2.5rem;
+            padding: 2rem 2rem 1.8rem;
+            border: 1px solid var(--border-light);
+            box-shadow: 0 30px 50px rgba(0,30,30,0.5);
+            color: var(--text-primary);
+            max-height: 85vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px dashed var(--accent);
+            padding-bottom: 0.8rem;
+            margin-bottom: 1.2rem;
+        }
+        .modal-header h3 {
+            font-size: 1.9rem;
+            margin: 0;
+            border: none;
+            padding: 0;
+        }
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 2.2rem;
+            cursor: pointer;
+            color: var(--text-secondary);
+            line-height: 1;
+        }
+        .close-btn:hover {
+            color: var(--accent);
+            transform: scale(1.2);
+        }
+
+        /* scrollable content area (report) */
+        #reportContent {
+            overflow-y: auto;
+            padding-right: 4px;
+            flex: 1;
+        }
+
+        .result-row {
+            display: flex;
+            margin: 0.7rem 0;
+            border-bottom: 1px dotted var(--border-light);
+            padding-bottom: 0.5rem;
+        }
+        .result-label {
+            font-weight: 700;
+            width: 120px;
+            color: var(--text-secondary);
+        }
+        .result-value {
+            flex: 1;
+            color: var(--text-primary);
+        }
+        .drug-box {
+            background: var(--check-bg);
+            border-radius: 30px;
+            padding: 1.3rem;
+            margin: 1.5rem 0;
+            border-left: 8px solid var(--accent);
+        }
+        .drug-box p { margin: 0.5rem 0; }
+        .footnote {
+            font-size: 0.9rem;
+            opacity: 0.8;
+            margin-top: 1rem;
+        }
+
+        /* download button row inside modal */
+        .download-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+            margin-top: 1.5rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border-light);
+        }
+        .download-btn {
+            background: var(--accent-light);
+            border: none;
+            color: white;
+            padding: 0.7rem 1.5rem;
+            border-radius: 40px;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 1rem;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .download-btn i { font-size: 1.2rem; }
+        .download-btn:hover {
+            background: var(--accent);
+        }
+
+        /* responsive tweaks */
+        @media (max-width: 600px) {
+            header { padding: 1rem; }
+            .logo { font-size: 1.4rem; }
+            .card { padding: 1.5rem; }
+            .symptom-grid { grid-template-columns: 1fr; }
+            .patient-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">
+            <i class="fas fa-biohazard"></i> typho<span style="color: var(--accent-light);">·scope</span>
+        </div>
+        <!-- dark mode toggle on the right -->
+        <div class="dark-toggle" id="darkModeToggle">
+            <i class="fas fa-sun"></i>
+            <span>Dark</span>
+            <i class="fas fa-moon"></i>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="card">
+            <h2><i class="fas fa-thermometer-half"></i> patient details</h2>
+            <div class="patient-grid">
+                <div class="input-field">
+                    <label>full name</label>
+                    <input type="text" id="patientName" placeholder="e.g. Maria Santos" value="Maria Santos">
+                </div>
+                <div class="input-field">
+                    <label>patient ID</label>
+                    <input type="text" id="patientId" placeholder="TY-2304" value="TY-2304">
+                </div>
+                <div class="input-field">
+                    <label>phone number</label>
+                    <input type="tel" id="patientPhone" placeholder="+63 xxx xxx xxx" value="+63 912 3456">
+                </div>
+                <div class="input-field">
+                    <label>age (years)</label>
+                    <input type="number" id="patientAge" min="0" value="28">
+                </div>
+                <div class="input-field">
+                    <label>gender</label>
+                    <select id="patientGender">
+                        <option value="female" selected>Female</option>
+                        <option value="male">Male</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+            </div>
+
+            <h3><i class="fas fa-list-check"></i> tick the exact symptoms</h3>
+            <div class="symptom-grid" id="symptomGrid">
+                <!-- dynamic checkboxes from JS will be injected -->
+            </div>
+
+            <div class="action-buttons">
+                <button class="btn" id="diagnoseBtn"><i class="fas fa-stethoscope"></i> diagnose & prescribe</button>
+                <button class="btn btn-outline" id="clearBtn"><i class="fas fa-rotate-left"></i> clear all</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- modal overlay (hidden by default) -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3><i class="fas fa-file-prescription"></i> diagnosis report</h3>
+                <button class="close-btn" id="closeModalBtn">&times;</button>
+            </div>
+            <!-- this is the part we will capture for download (excluding header & download buttons) -->
+            <div id="reportContent">
+                <!-- filled dynamically -->
+            </div>
+            <!-- download buttons -->
+            <div class="download-actions">
+                <button class="download-btn" id="downloadImageBtn"><i class="fas fa-camera"></i> save as PNG</button>
+                <button class="download-btn" id="downloadPdfBtn"><i class="fas fa-file-pdf"></i> save as PDF</button>
+            </div>
+        </div>
+    </div>
+
+    <footer style="text-align: center; padding: 1rem; color: var(--text-secondary); font-size: 0.9rem; backdrop-filter: blur(4px);">
+        <i class="fas fa-syringe"></i> typho·scope · cool diagnoser with download
+    </footer>
+
+    <script>
+        (function() {
+            // --- symptoms master list (creative but realistic for typhoid)
+            const SYMPTOMS_LIST = [
+                "Fever (high, stepwise)",
+                "Headache (persistent)",
+                "Abdominal pain / discomfort",
+                "Constipation (more common in adults)",
+                "Diarrhea (more common in children)",
+                "Rose spots (rash on trunk)",
+                "Loss of appetite",
+                "Nausea or vomiting",
+                "Weakness / extreme fatigue",
+                "Dry cough",
+                "Bradycardia (relative slow heart rate)",
+                "Confusion / delirium (severe)"
+            ];
+
+            const symptomGrid = document.getElementById('symptomGrid');
+            // build checkboxes
+            function buildSymptomCheckboxes() {
+                symptomGrid.innerHTML = '';
+                SYMPTOMS_LIST.forEach((symptom, index) => {
+                    const div = document.createElement('div');
+                    div.className = 'symptom-item';
+                    const chk = document.createElement('input');
+                    chk.type = 'checkbox';
+                    chk.id = `sym_${index}`;
+                    chk.value = symptom;
+                    // pre-check a few for demo
+                    if (index < 3) chk.checked = true; 
+                    if (index === 5) chk.checked = true; 
+                    const label = document.createElement('label');
+                    label.htmlFor = `sym_${index}`;
+                    label.textContent = symptom;
+                    div.appendChild(chk);
+                    div.appendChild(label);
+                    symptomGrid.appendChild(div);
+                });
+            }
+            buildSymptomCheckboxes();
+
+            // DOM elements
+            const patientName = document.getElementById('patientName');
+            const patientId = document.getElementById('patientId');
+            const patientPhone = document.getElementById('patientPhone');
+            const patientAge = document.getElementById('patientAge');
+            const patientGender = document.getElementById('patientGender');
+            const diagnoseBtn = document.getElementById('diagnoseBtn');
+            const clearBtn = document.getElementById('clearBtn');
+            const modalOverlay = document.getElementById('modalOverlay');
+            const closeModalBtn = document.getElementById('closeModalBtn');
+            const reportContent = document.getElementById('reportContent');
+            const downloadImageBtn = document.getElementById('downloadImageBtn');
+            const downloadPdfBtn = document.getElementById('downloadPdfBtn');
+
+            // dark mode toggle
+            const darkToggle = document.getElementById('darkModeToggle');
+            darkToggle.addEventListener('click', () => {
+                document.body.classList.toggle('dark');
+            });
+
+            // get selected symptoms
+            function getSelectedSymptoms() {
+                const checkboxes = document.querySelectorAll('.symptom-item input[type="checkbox"]');
+                const selected = [];
+                checkboxes.forEach(cb => {
+                    if (cb.checked) selected.push(cb.value);
+                });
+                return selected;
+            }
+
+            // diagnosis & drug logic (same as before)
+            function generateDiagnosis(selectedSyms, age, gender) {
+                const count = selectedSyms.length;
+                const hasFever = selectedSyms.some(s => s.toLowerCase().includes('fever'));
+                let diagnosisText = '';
+                let drugs = [];
+
+                if (hasFever && count >= 5) {
+                    diagnosisText = '🦠 **High probability of enteric fever (typhoid)**. Typical symptom pattern.';
+                    drugs = [
+                        'Azithromycin 500 mg once daily for 7 days (or 10mg/kg for children)',
+                        'Ciprofloxacin 500 mg twice daily for 10–14 days (if sensitive)',
+                        'Ceftriaxone 2g IV once daily for severe cases (hospital setting)'
+                    ];
+                } else if (hasFever && count >= 3) {
+                    diagnosisText = '⚠️ **Possible typhoid / paratyphoid fever**. Clinical suspicion – consider Widal or blood culture.';
+                    drugs = [
+                        'Azithromycin 500 mg daily for 7 days (outpatient)',
+                        'Encourage hydration & rest',
+                        'If vomiting / severe, refer for parenteral ceftriaxone'
+                    ];
+                } else if (hasFever && count < 3) {
+                    diagnosisText = '🌡️ Fever present but few associated symptoms – unlikely typhoid alone. Consider viral illness / other infections.';
+                    drugs = [
+                        'Symptomatic management: Paracetamol for fever',
+                        'Re-evaluate after 24h or test for malaria / dengue if endemic',
+                        'If typhoid suspected despite atypical presentation, conservative follow-up'
+                    ];
+                } else {
+                    diagnosisText = '❓ No fever indicated – typhoid very unlikely. Please verify symptoms.';
+                    drugs = [
+                        'No specific typhoid treatment recommended.',
+                        'If abdominal symptoms persist, consider other enteric pathogens.'
+                    ];
+                }
+
+                if (age < 12) {
+                    drugs.push('👶 Pediatric dosing required – consult child specialist.');
+                }
+
+                return { diagnosisText, drugs };
+            }
+
+            // fill modal with data (into reportContent)
+            function showModal() {
+                const name = patientName.value.trim() || '—';
+                const id = patientId.value.trim() || '—';
+                const phone = patientPhone.value.trim() || '—';
+                const age = parseInt(patientAge.value) || 0;
+                const gender = patientGender.value;
+
+                const selected = getSelectedSymptoms();
+                const { diagnosisText, drugs } = generateDiagnosis(selected, age, gender);
+
+                let html = `
+                    <div class="result-row"><span class="result-label">Name</span><span class="result-value">${name}</span></div>
+                    <div class="result-row"><span class="result-label">ID</span><span class="result-value">${id}</span></div>
+                    <div class="result-row"><span class="result-label">Phone</span><span class="result-value">${phone}</span></div>
+                    <div class="result-row"><span class="result-label">Age/Gender</span><span class="result-value">${age} yrs, ${gender}</span></div>
+                    <div class="result-row"><span class="result-label">Symptoms</span><span class="result-value">${selected.length ? selected.join('; ') : 'none selected'}</span></div>
+                `;
+
+                html += `<div class="drug-box"><strong><i class="fas fa-diagnoses"></i> conclusion:</strong> ${diagnosisText}<br><br>`;
+                html += `<strong><i class="fas fa-pills"></i> recommendation / drugs:</strong><br>`;
+                drugs.forEach(d => html += `<p>• ${d}</p>`);
+                html += `<div class="footnote"><i class="fas fa-flask"></i> always confirm with lab tests. adjust doses per renal function/allergies.</div>`;
+                html += `</div>`;
+
+                reportContent.innerHTML = html;
+                modalOverlay.style.display = 'flex';
+            }
+
+            diagnoseBtn.addEventListener('click', () => {
+                showModal();
+            });
+
+            closeModalBtn.addEventListener('click', () => {
+                modalOverlay.style.display = 'none';
+            });
+
+            modalOverlay.addEventListener('click', (e) => {
+                if (e.target === modalOverlay) {
+                    modalOverlay.style.display = 'none';
+                }
+            });
+
+            clearBtn.addEventListener('click', () => {
+                const checkboxes = document.querySelectorAll('.symptom-item input[type="checkbox"]');
+                checkboxes.forEach(cb => cb.checked = false);
+                patientName.value = '';
+                patientId.value = '';
+                patientPhone.value = '';
+                patientAge.value = '';
+                patientGender.value = 'female';
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && modalOverlay.style.display === 'flex') {
+                    modalOverlay.style.display = 'none';
+                }
+            });
+
+            // ---------- DOWNLOAD FUNCTIONS ----------
+            // capture reportContent as PNG and download
+            function downloadAsImage() {
+                html2canvas(reportContent, {
+                    scale: 1.8,              // better resolution
+                    backgroundColor: null,     // respect transparency / background
+                    allowTaint: false,
+                    useCORS: true,
+                    logging: false
+                }).then((canvas) => {
+                    // create download link
+                    const link = document.createElement('a');
+                    link.download = `typho_report_${patientId.value || 'patient'}.png`;
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+                }).catch(error => {
+                    alert('Could not capture image: ' + error);
+                });
+            }
+
+            // capture reportContent as PDF (using jsPDF)
+            function downloadAsPDF() {
+                html2canvas(reportContent, {
+                    scale: 2,
+                    backgroundColor: null,
+                    allowTaint: false,
+                    useCORS: true,
+                    logging: false
+                }).then((canvas) => {
+                    const imgData = canvas.toDataURL('image/png');
+                    const { jsPDF } = window.jspdf;
+                    // orientation & size based on canvas proportions
+                    const imgWidth = 210; // A4 width in mm
+                    const pageHeight = 297; // A4 height in mm
+                    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                    let pdf = new jsPDF('p', 'mm', 'a4');
+                    pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight, undefined, 'FAST');
+                    // if content exceeds one page, we could add more pages, but usually report is short.
+                    pdf.save(`typho_report_${patientId.value || 'patient'}.pdf`);
+                }).catch(error => {
+                    alert('Could not generate PDF: ' + error);
+                });
+            }
+
+            downloadImageBtn.addEventListener('click', downloadAsImage);
+            downloadPdfBtn.addEventListener('click', downloadAsPDF);
+        })();
+    </script>
+</body>
+</html>
